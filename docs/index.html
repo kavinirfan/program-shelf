@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Program Shelf</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow column — toolbar, optional editor, then a stack of program cards with the code front and center */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --code-bg: #eef1f5;
+  --fg: #1a2230;
+  --muted: #5d6879;
+  --line: #d9dee6;
+  --accent: #2456c9;
+  --accent-fg: #ffffff;
+  --ok: #1f7a4d;
+  --danger: #b4322a;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #181d26; --code-bg: #0d1117; --fg: #e3e8f0; --muted: #94a0b2;
+    --line: #2a313d; --accent: #6f9bff; --accent-fg: #0b1020; --ok: #5cc98f; --danger: #ff7b72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #181d26; --code-bg: #0d1117; --fg: #e3e8f0; --muted: #94a0b2;
+  --line: #2a313d; --accent: #6f9bff; --accent-fg: #0b1020; --ok: #5cc98f; --danger: #ff7b72;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-code); font-size: 1.35rem; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+h1 span { color: var(--accent); }
+.status { font-size: 0.8rem; color: var(--muted); }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+input, select, textarea, button { font: inherit; color: inherit; }
+input[type="search"], input[type="text"], select, textarea {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; min-width: 0;
+}
+input[type="search"] { flex: 1 1 220px; }
+textarea { font-family: var(--font-code); font-size: 13px; line-height: 1.55; width: 100%; min-height: 220px; resize: vertical; tab-size: 4; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { cursor: pointer; border-radius: 6px; padding: 8px 14px; border: 1px solid var(--line); background: var(--surface); }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { color: var(--danger); }
+button.small { padding: 4px 10px; font-size: 0.82rem; }
+
+.editor { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > input { flex: 1 1 240px; }
+.row > select { flex: 0 1 160px; }
+.editor-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.list { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-width: 0; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; flex-wrap: wrap; }
+.card-title { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.lang { font-family: var(--font-code); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.meta { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.copy { min-width: 76px; }
+.copy.done { background: var(--ok); border-color: var(--ok); color: var(--accent-fg); }
+pre {
+  margin: 0; background: var(--code-bg); border-top: 1px solid var(--line); padding: 12px 14px;
+  font-family: var(--font-code); font-size: 13px; line-height: 1.55; overflow: auto; max-height: 340px; tab-size: 4;
+}
+.card-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 12px; border-top: 1px solid var(--line); align-items: center; }
+.confirm-text { font-size: 0.82rem; color: var(--danger); margin-right: auto; }
+.empty { text-align: center; color: var(--muted); padding: 40px 16px; border: 1px dashed var(--line); border-radius: 8px; }
+.empty strong { color: var(--fg); display: block; margin-bottom: 4px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+#app { width: 100%; }
+.unlock { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 440px; }
+.unlock label { font-weight: 600; }
+.unlock .row > input { flex: 1 1 180px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; min-width: 0; }
+.unlock-help { color: var(--muted); font-size: 0.82rem; }
+.unlock-msg { color: var(--danger); font-size: 0.85rem; min-height: 1.2em; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>program<span>/</span>shelf</h1>
+    <div class="header-right">
+      <div class="status" id="status">Loading…</div>
+      <button class="small" id="lock-btn" type="button" title="Forget the access key on this device">Lock</button>
+    </div>
+  </header>
+
+  <form class="unlock" id="unlock" hidden>
+    <label for="pass">Paste your GitHub access key</label>
+    <div class="row">
+      <input type="password" id="pass" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
+      <button type="submit" class="primary">Open shelf</button>
+    </div>
+    <div class="unlock-help">Each device asks for it once. Press Lock on shared computers.</div>
+    <div class="unlock-msg" id="unlock-msg" role="alert"></div>
+  </form>
+
+  <div id="app" class="wrap" hidden>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search by title, language or code" aria-label="Search programs">
+    <button class="primary" id="new-btn">New program</button>
+  </div>
+
+  <form class="editor" id="editor" hidden>
+    <div class="row">
+      <input type="text" id="f-title" placeholder="Title, e.g. Bubble sort" required aria-label="Title">
+      <select id="f-lang" aria-label="Language">
+        <option>Python</option><option>C</option><option>C++</option><option>Java</option>
+        <option>JavaScript</option><option>HTML</option><option>SQL</option><option>Shell</option><option>Other</option>
+      </select>
+    </div>
+    <textarea id="f-code" placeholder="Paste or type the program here" required aria-label="Code" spellcheck="false"></textarea>
+    <div class="editor-actions">
+      <button type="button" id="cancel-btn">Cancel</button>
+      <button type="submit" class="primary" id="save-btn">Save</button>
+    </div>
+  </form>
+
+  <div class="list" id="list"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const listEl = $("list"), statusEl = $("status"), editor = $("editor");
+  let programs = [];          // [{id, title, lang, code, updated}]
+  let editingId = null, confirmId = null;
+  // Programs live in programs.json in a private GitHub repo; the browser keeps a cached copy so the page opens instantly
+  const API = "https://api.github.com/repos/kavinirfan/program-shelf-data/contents/programs.json";
+  const CACHE_KEY = "program-shelf-cache", TOKEN_KEY = "program-shelf-token";
+  const ls = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} }
+  };
+  let token = ls.get(TOKEN_KEY);
+  let sha = null;             // version of programs.json we last read; GitHub needs it to save
+
+  // GitHub stores file contents as base64; these keep non-English text intact
+  const fromB64 = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), c => c.charCodeAt(0)));
+  const toB64 = text => {
+    const bytes = new TextEncoder().encode(text);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+
+  async function gh(method, body) {
+    const res = await fetch(API, {
+      method, cache: "no-store",
+      headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json", ...(body ? { "content-type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (res.status === 401) { lock("That access key doesn't work. Check you copied all of it, or make a new one."); throw { handled: true }; }
+    if (res.status === 404) { lock("This key can't open your shelf. It needs access to program-shelf-data with Contents set to Read and write."); throw { handled: true }; }
+    if (!res.ok) throw { status: res.status, message: "GitHub refused the request (error " + res.status + "). Try again in a minute." };
+    return res.json();
+  }
+
+  async function fetchAll() {
+    const file = await gh("GET");
+    sha = file.sha;
+    return JSON.parse(fromB64(file.content) || "[]");
+  }
+
+  // Read the latest file, change it, write it back; retry once if another device saved in between
+  async function write(change, message) {
+    for (let attempt = 0; ; attempt++) {
+      const list = change(await fetchAll());
+      try {
+        const res = await gh("PUT", { message, content: toB64(JSON.stringify(list, null, 1)), sha });
+        sha = res.content.sha;
+        return list;
+      } catch (e) {
+        if (attempt || (e.status !== 409 && e.status !== 422)) throw e;
+      }
+    }
+  }
+
+  function setPrograms(list) {
+    programs = list;
+    ls.set(CACHE_KEY, JSON.stringify(list));
+    statusEl.textContent = "Synced " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    render();
+  }
+
+  const store = {
+    async load() { setPrograms(await fetchAll()); },
+    async save(p) { setPrograms(await write(list => list.filter(x => x.id !== p.id).concat(p), "Save " + p.title)); },
+    async remove(id) { setPrograms(await write(list => list.filter(x => x.id !== id), "Delete a program")); }
+  };
+
+  function lock(msg) {
+    token = null; ls.del(TOKEN_KEY); ls.del(CACHE_KEY);
+    programs = []; render();
+    $("app").hidden = true; $("unlock").hidden = false; $("lock-btn").hidden = true;
+    $("unlock-msg").textContent = msg || "";
+    $("pass").value = ""; $("pass").focus();
+  }
+  function unlock() {
+    $("unlock").hidden = true; $("app").hidden = false; $("lock-btn").hidden = false;
+    statusEl.textContent = "Loading…";
+    safe(() => store.load());
+  }
+
+  const fmtDate = t => t ? new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+
+  function render() {
+    const q = $("q").value.trim().toLowerCase();
+    const shown = programs
+      .filter(p => !q || (p.title + " " + p.lang + " " + p.code).toLowerCase().includes(q))
+      .sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    listEl.replaceChildren();
+    if (!shown.length) {
+      const e = document.createElement("div");
+      e.className = "empty";
+      e.innerHTML = q
+        ? "<strong>No programs match that search.</strong>Try a different word."
+        : "<strong>Your shelf is empty.</strong>Press New program, paste your code, and save it. Each program gets a Copy button.";
+      listEl.append(e);
+      return;
+    }
+    for (const p of shown) listEl.append(card(p));
+  }
+
+  function card(p) {
+    const el = document.createElement("article");
+    el.className = "card";
+    const head = document.createElement("div"); head.className = "card-head";
+    const t = document.createElement("div"); t.className = "card-title"; t.textContent = p.title;
+    const lang = document.createElement("span"); lang.className = "lang"; lang.textContent = p.lang;
+    const meta = document.createElement("span"); meta.className = "meta";
+    meta.textContent = `${p.code.split("\n").length} lines · ${fmtDate(p.updated)}`;
+    const copy = document.createElement("button"); copy.className = "primary copy small"; copy.textContent = "Copy";
+    copy.onclick = () => doCopy(p.code, copy, pre);
+    head.append(t, lang, meta, copy);
+
+    const pre = document.createElement("pre"); pre.tabIndex = 0;
+    const code = document.createElement("code"); code.textContent = p.code; pre.append(code);
+
+    const foot = document.createElement("div"); foot.className = "card-foot";
+    if (confirmId === p.id) {
+      const msg = document.createElement("span"); msg.className = "confirm-text"; msg.textContent = "Delete this program for good?";
+      const no = button("Keep it", "small", () => { confirmId = null; render(); });
+      const yes = button("Delete", "small danger", async () => { confirmId = null; await safe(() => store.remove(p.id)); });
+      foot.append(msg, no, yes);
+    } else {
+      foot.append(button("Edit", "small", () => openEditor(p)), button("Delete", "small danger", () => { confirmId = p.id; render(); }));
+    }
+    el.append(head, pre, foot);
+    return el;
+  }
+
+  function button(label, cls, fn) { const b = document.createElement("button"); b.className = cls; b.textContent = label; b.onclick = fn; return b; }
+
+  function doCopy(text, btn, pre) {
+    const done = ok => {
+      btn.textContent = ok ? "Copied" : "Selected";
+      btn.classList.toggle("done", ok);
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
+    };
+    const selectFallback = () => {
+      const r = document.createRange(); r.selectNodeContents(pre);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      let ok = false; try { ok = document.execCommand("copy"); } catch {}
+      done(ok);
+    };
+    try { navigator.clipboard.writeText(text).then(() => done(true), selectFallback); }
+    catch { selectFallback(); }
+  }
+
+  function openEditor(p) {
+    editingId = p ? p.id : null;
+    $("f-title").value = p ? p.title : "";
+    $("f-lang").value = p ? p.lang : "Python";
+    $("f-code").value = p ? p.code : "";
+    $("save-btn").textContent = p ? "Save changes" : "Save";
+    editor.hidden = false;
+    $("f-title").focus();
+    editor.scrollIntoView({ block: "nearest" });
+  }
+  function closeEditor() { editor.hidden = true; editingId = null; editor.reset(); }
+
+  async function safe(fn) {
+    try { await fn(); return true; }
+    catch (e) {
+      if (!(e && e.handled)) statusEl.textContent = (e && e.message) || "Could not reach the server. Check your connection and try again.";
+      return false;
+    }
+  }
+
+  // Tab key inserts a tab instead of leaving the code box
+  $("f-code").addEventListener("keydown", e => {
+    if (e.key !== "Tab" || e.shiftKey) return;
+    e.preventDefault();
+    const ta = e.target, s = ta.selectionStart;
+    ta.setRangeText("\t", s, ta.selectionEnd, "end");
+  });
+
+  editor.addEventListener("submit", async e => {
+    e.preventDefault();
+    const title = $("f-title").value.trim(), code = $("f-code").value;
+    if (!title || !code.trim()) return;
+    const p = { id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title, lang: $("f-lang").value, code, updated: Date.now() };
+    $("save-btn").disabled = true;
+    const ok = await safe(() => store.save(p));
+    $("save-btn").disabled = false;
+    if (ok) closeEditor();
+  });
+  $("new-btn").onclick = () => openEditor(null);
+  $("cancel-btn").onclick = closeEditor;
+  $("q").addEventListener("input", render);
+
+  $("unlock").addEventListener("submit", e => {
+    e.preventDefault();
+    token = $("pass").value.trim();
+    if (!token) return;
+    ls.set(TOKEN_KEY, token);
+    unlock();
+  });
+  $("lock-btn").onclick = () => lock("");
+
+  // Pick up programs saved on other devices when you come back to this tab
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && token) safe(() => store.load());
+  });
+
+  if (token) {
+    try { programs = JSON.parse(ls.get(CACHE_KEY)) || []; } catch {}
+    render();
+    unlock();
+  } else {
+    lock("");
+  }
+})();
+</script>
+</body>
+</html>
